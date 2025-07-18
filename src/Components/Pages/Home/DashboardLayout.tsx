@@ -1,36 +1,24 @@
-import React from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Outlet, NavLink } from 'react-router-dom';
 
-// Sidebar component
-function Sidebar() {
-  return (
-    <aside style={{ width: 200, background: '#f4f4f4', height: '100vh', padding: 20 }}>
-      <nav>
-        <ul>
-          <li><a href="/tasks">Tasks</a></li>
-          <li><a href="/timeline">Timeline</a></li>
-        </ul>
-      </nav>
-    </aside>
-  );
-}
+import Navbar from '../../Common/Header/Navbar';
+import Sidebar from '../../Common/Sideber/Sidebar';
 
-// Header component
-function Header() {
-  return (
-    <header style={{ height: 60, background: '#222', color: '#fff', display: 'flex', alignItems: 'center', padding: '0 20px' }}>
-      <h1 style={{ margin: 0, fontSize: 24 }}>Dashboard</h1>
-    </header>
-  );
-}
+
+
 
 const DashboardLayout: React.FC = () => {
+  // Responsive sidebar toggle for mobile (optional, not implemented here)
   return (
-    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
-      <Header />
-      <div style={{ display: 'flex', flex: 1 }}>
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className="hidden md:block">
         <Sidebar />
-        <main style={{ flex: 1, padding: 24, background: '#fafafa' }}>
+      </div>
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col md:ml-64">
+        <Navbar title='' />
+        <main className="flex-1 p-6">
           <Outlet />
         </main>
       </div>

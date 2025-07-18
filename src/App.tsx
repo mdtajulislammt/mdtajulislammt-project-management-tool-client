@@ -1,23 +1,34 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './Components/Pages/Login/Login';
-import TaskList from './Components/Tasks/TaskList';
-import DashboardLayout from './Components/Pages/Home/DashboardLayout';
-import Register from './Components/Pages/Registation/Register';
-
+import RoleBasedTimeline from './Components/Role/Role';
+const Dashboard = lazy(() => import('./Components/Pages/Dasboard'));
+const Register = lazy(() => import('./Components/Pages/Registation/Register'));
+const Login = lazy(() => import('./Components/Pages/Login/Login'));
+const Tasks = lazy(() => import('./Components/Tasks/TaskList'));
+const Timeline = lazy(() => import('./Components/TimeLine/TimeLine'));
+const Presence = lazy(() => import('./Components/Presence/PresenceIndicator/Presence'));
+const Notifications = lazy(() => import('./Components/Notifications/Notifications'));
+const Users = lazy(() => import('./Components/Users/Users'));
 
 const App: React.FC = () => {
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/" element={<DashboardLayout />}>
-          <Route index element={<Navigate to="tasks" />} />
-          <Route path="tasks" element={<TaskList />} />
-          {/* <Route path="timeline" element={<Timeline />} /> */}
-        </Route>
-      </Routes>
+      <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/dashboard" element={<Tasks />}/>
+            {/* <Route index element={<Dashboard />} /> */}
+            <Route path="/tasks" element={<Tasks />} />
+            <Route path="/timeline" element={<Timeline />} />
+            <Route path="/presence" element={<Presence />} />
+            <Route path="/role" element={<RoleBasedTimeline />} />
+            <Route path="/notifications" element={<Notifications />} />
+            <Route path="/users" element={<Users />} />
+          {/* </Route> */}
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </Suspense>
     </Router>
   );
 };

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "../../store/store";
 import {
   Calendar,
   Clock,
@@ -18,170 +20,100 @@ import {
 } from "lucide-react";
 import Sidebar from "../Common/Sideber/Sidebar";
 import Navbar from "../Common/Header/Navbar";
+// import { io, Socket } from "socket.io-client";
+import { updateTask, addTask, deleteTask, Task } from "../../slices/taskSlice";
+import { addDependency, deleteDependency } from "../../slices/timelineSlice";
+// import { Socket } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
+
 
 // Types
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  assignedTo: string;
-  priority: "high" | "medium" | "low";
-  status: "pending" | "in-progress" | "completed";
-  startDate: string;
-  endDate: string;
-  progress: number;
-  dependencies: string[];
-  color: string;
-}
-
 interface Dependency {
   id: string;
   fromTask: string;
   toTask: string;
-  type: "finish-to-start" | "start-to-start" | "finish-to-finish" | "start-to-finish";
+  type:
+    | "finish-to-start"
+    | "start-to-start"
+    | "finish-to-finish"
+    | "start-to-finish";
 }
 
 const Timeline: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [dependencies, setDependencies] = useState<Dependency[]>([]);
+  // Redux state
+  const tasks = useSelector((state: RootState) => state.tasks.tasks);
+  const dependencies = useSelector(
+    (state: RootState) => state.timeline.dependencies
+  );
+  const dispatch = useDispatch();
+
+  // Local state
   const [selectedTask, setSelectedTask] = useState<string | null>(null);
   const [showDependencyModal, setShowDependencyModal] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(0.5); // Default to 50%
-  const [viewMode, setViewMode] = useState<"days" | "weeks" | "months">("weeks");
+  const [viewMode, setViewMode] = useState<"days" | "weeks" | "months">(
+    "weeks"
+  );
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  // Mock data for tasks
-  const mockTasks: Task[] = [
-    {
-      id: "1",
-      title: "Project Planning",
-      description: "Define project scope and requirements",
-      assignedTo: "Ahmed Ali",
-      priority: "high",
-      status: "completed",
-      startDate: "2025-07-01",
-      endDate: "2025-07-10",
-      progress: 100,
-      dependencies: [],
-      color: "#3B82F6",
-    },
-    {
-      id: "2",
-      title: "UI/UX Design",
-      description: "Create wireframes and design mockups",
-      assignedTo: "Fatima Khan",
-      priority: "high",
-      status: "in-progress",
-      startDate: "2025-07-08",
-      endDate: "2025-07-25",
-      progress: 75,
-      dependencies: ["1"],
-      color: "#10B981",
-    },
-    {
-      id: "3",
-      title: "Database Setup",
-      description: "Configure database and schema",
-      assignedTo: "Mohammad Rahim",
-      priority: "medium",
-      status: "pending",
-      startDate: "2025-07-15",
-      endDate: "2025-07-28",
-      progress: 0,
-      dependencies: ["1"],
-      color: "#F59E0B",
-    },
-    {
-      id: "4",
-      title: "Frontend Development",
-      description: "Implement user interface components",
-      assignedTo: "Ayesha Siddika",
-      priority: "high",
-      status: "pending",
-      startDate: "2025-07-20",
-      endDate: "2025-08-15",
-      progress: 0,
-      dependencies: ["2"],
-      color: "#EF4444",
-    },
-    {
-      id: "5",
-      title: "Backend Development",
-      description: "Develop API endpoints and business logic",
-      assignedTo: "Karim Uddin",
-      priority: "high",
-      status: "pending",
-      startDate: "2025-07-25",
-      endDate: "2025-08-20",
-      progress: 0,
-      dependencies: ["3"],
-      color: "#8B5CF6",
-    },
-    {
-      id: "6",
-      title: "Integration Testing",
-      description: "Test integration between frontend and backend",
-      assignedTo: "Ahmed Ali",
-      priority: "medium",
-      status: "pending",
-      startDate: "2025-08-18",
-      endDate: "2025-08-30",
-      progress: 0,
-      dependencies: ["4", "5"],
-      color: "#06B6D4",
-    },
-    {
-      id: "7",
-      title: "Deployment",
-      description: "Deploy application to production",
-      assignedTo: "Mohammad Rahim",
-      priority: "high",
-      status: "pending",
-      startDate: "2025-08-28",
-      endDate: "2025-09-05",
-      progress: 0,
-      dependencies: ["6"],
-      color: "#84CC16",
-    },
-  ];
-
-  // Mock dependencies
-  const mockDependencies: Dependency[] = [
-    { id: "1", fromTask: "1", toTask: "2", type: "finish-to-start" },
-    { id: "2", fromTask: "1", toTask: "3", type: "finish-to-start" },
-    { id: "3", fromTask: "2", toTask: "4", type: "finish-to-start" },
-    { id: "4", fromTask: "3", toTask: "5", type: "finish-to-start" },
-    { id: "5", fromTask: "4", toTask: "6", type: "finish-to-start" },
-    { id: "6", fromTask: "5", toTask: "6", type: "finish-to-start" },
-    { id: "7", fromTask: "6", toTask: "7", type: "finish-to-start" },
-  ];
+  const socketUrl = process.env.REACT_APP_SOCKET_URL || "http://localhost:5001";
+  let socket: Socket | null = null;
 
   useEffect(() => {
-    setTasks(mockTasks);
-    setDependencies(mockDependencies);
-  }, []);
+    socket = io(socketUrl);
+
+    // Listen for task updates
+    socket.on("task_updated", (updatedTask: Task) => {
+      dispatch(updateTask(updatedTask)); // from your slice
+    });
+
+    socket.on("task_added", (newTask: Task) => {
+      dispatch(addTask(newTask));
+    });
+
+    socket.on("task_deleted", (taskId: string) => {
+      dispatch(deleteTask(taskId));
+    });
+
+    // Listen for dependency updates
+    socket.on("dependency_added", (dep: Dependency) => {
+      dispatch(addDependency(dep));
+    });
+
+    socket.on("dependency_deleted", (depId: string) => {
+      dispatch(deleteDependency(depId));
+    });    
+
+    // Clean up on unmount
+    return () => {
+      socket?.disconnect();
+    };
+  }, [dispatch]);
 
   // Get filtered tasks
   const getFilteredTasks = () => {
     if (filterStatus === "all") return tasks;
-    return tasks.filter(task => task.status === filterStatus);
+    return tasks.filter((task) => task.status === filterStatus);
   };
 
   // Get task by ID
   const getTaskById = (id: string) => {
-    return tasks.find(task => task.id === id);
+    return tasks.find((task) => task.id === id);
   };
 
   // Calculate timeline dates
   const getTimelineRange = () => {
-    const allDates = tasks.flatMap(task => [new Date(task.startDate), new Date(task.endDate)]);
-    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
-    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
-    
+    const allDates = tasks.flatMap((task) => [
+      new Date(task.startDate),
+      new Date(task.endDate),
+    ]);
+    const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())));
+
     // Add some padding
     minDate.setDate(minDate.getDate() - 7);
     maxDate.setDate(maxDate.getDate() + 7);
-    
+
     return { minDate, maxDate };
   };
 
@@ -190,10 +122,10 @@ const Timeline: React.FC = () => {
     const { minDate, maxDate } = getTimelineRange();
     const columns = [];
     const currentDate = new Date(minDate);
-    
+
     while (currentDate <= maxDate) {
       columns.push(new Date(currentDate));
-      
+
       if (viewMode === "days") {
         currentDate.setDate(currentDate.getDate() + 1);
       } else if (viewMode === "weeks") {
@@ -202,7 +134,7 @@ const Timeline: React.FC = () => {
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
     }
-    
+
     return columns;
   };
 
@@ -211,10 +143,10 @@ const Timeline: React.FC = () => {
     const { minDate } = getTimelineRange();
     const columns = generateTimelineColumns();
     const columnWidth = 120 * zoomLevel;
-    
+
     const taskStart = new Date(task.startDate);
     const taskEnd = new Date(task.endDate);
-    
+
     // Find start position
     let startIndex = 0;
     for (let i = 0; i < columns.length; i++) {
@@ -222,13 +154,14 @@ const Timeline: React.FC = () => {
         startIndex = i;
       }
     }
-    
+
     // Calculate duration
     const durationMs = taskEnd.getTime() - taskStart.getTime();
-    const totalDurationMs = columns[columns.length - 1].getTime() - columns[0].getTime();
+    const totalDurationMs =
+      columns[columns.length - 1].getTime() - columns[0].getTime();
     const widthRatio = durationMs / totalDurationMs;
     const width = Math.max(columnWidth * widthRatio, 60);
-    
+
     return {
       left: startIndex * columnWidth,
       width: width,
@@ -236,50 +169,60 @@ const Timeline: React.FC = () => {
   };
 
   // Get priority color
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority?: string) => {
     switch (priority) {
-      case "high": return "bg-red-100 text-red-800";
-      case "medium": return "bg-yellow-100 text-yellow-800";
-      case "low": return "bg-green-100 text-green-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "high":
+        return "bg-red-100 text-red-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "low":
+        return "bg-green-100 text-green-800";
+      default:
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   // Get status icon
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "completed": return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "in-progress": return <Clock className="w-4 h-4 text-blue-600" />;
-      case "pending": return <Circle className="w-4 h-4 text-gray-600" />;
-      default: return <Circle className="w-4 h-4 text-gray-600" />;
+      case "completed":
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "in-progress":
+        return <Clock className="w-4 h-4 text-blue-600" />;
+      case "pending":
+        return <Circle className="w-4 h-4 text-gray-600" />;
+      default:
+        return <Circle className="w-4 h-4 text-gray-600" />;
     }
   };
 
   // Add new dependency
-  const addDependency = (fromTask: string, toTask: string) => {
+  const addDependencyLocal = (fromTask: string, toTask: string) => {
     const newDependency: Dependency = {
       id: Date.now().toString(),
       fromTask,
       toTask,
       type: "finish-to-start",
     };
-    
-    setDependencies([...dependencies, newDependency]);
+
+    dispatch(addDependency(newDependency));
+    socket?.emit("add_dependency", newDependency);
   };
 
   // Remove dependency
   const removeDependency = (dependencyId: string) => {
-    setDependencies(dependencies.filter(dep => dep.id !== dependencyId));
+    dispatch(deleteDependency(dependencyId));
+    socket?.emit("delete_dependency", dependencyId);
   };
 
   // Get task dependencies
   const getTaskDependencies = (taskId: string) => {
-    return dependencies.filter(dep => dep.toTask === taskId);
+    return dependencies.filter((dep) => dep.toTask === taskId);
   };
 
   // Get dependent tasks
   const getDependentTasks = (taskId: string) => {
-    return dependencies.filter(dep => dep.fromTask === taskId);
+    return dependencies.filter((dep) => dep.fromTask === taskId);
   };
 
   const timelineColumns = generateTimelineColumns();
@@ -295,17 +238,19 @@ const Timeline: React.FC = () => {
       {/* Main content area */}
       <div className="flex-1 flex flex-col">
         <Navbar title="Timeline" />
-        
+
         <div className="flex-1 p-6">
           {/* Header Controls */}
           <div className="bg-white rounded-lg shadow mb-6 p-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-gray-900">Project Timeline</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Project Timeline
+                </h1>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">View:</span>
-                  <select 
-                    value={viewMode} 
+                  <select
+                    value={viewMode}
                     onChange={(e) => setViewMode(e.target.value as any)}
                     className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -320,8 +265,8 @@ const Timeline: React.FC = () => {
                 {/* Filter */}
                 <div className="flex items-center gap-2">
                   <Filter className="w-4 h-4 text-gray-600" />
-                  <select 
-                    value={filterStatus} 
+                  <select
+                    value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
                     className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -335,7 +280,9 @@ const Timeline: React.FC = () => {
                 {/* Zoom Controls */}
                 <div className="flex items-center gap-1 border border-gray-300 rounded-lg">
                   <button
-                    onClick={() => setZoomLevel(Math.max(0.5, zoomLevel - 0.25))}
+                    onClick={() =>
+                      setZoomLevel(Math.max(0.5, zoomLevel - 0.25))
+                    }
                     className="p-1 hover:bg-gray-100 rounded-l-lg"
                   >
                     <ZoomOut className="w-4 h-4" />
@@ -369,7 +316,9 @@ const Timeline: React.FC = () => {
                   <Calendar className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{tasks.length}</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {tasks.length}
+                  </div>
                   <div className="text-gray-600">Total Tasks</div>
                 </div>
               </div>
@@ -382,7 +331,7 @@ const Timeline: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">
-                    {tasks.filter(t => t.status === 'completed').length}
+                    {tasks.filter((t) => t.status === "completed").length}
                   </div>
                   <div className="text-gray-600">Completed</div>
                 </div>
@@ -396,7 +345,7 @@ const Timeline: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">
-                    {tasks.filter(t => t.status === 'in-progress').length}
+                    {tasks.filter((t) => t.status === "in-progress").length}
                   </div>
                   <div className="text-gray-600">In Progress</div>
                 </div>
@@ -409,7 +358,9 @@ const Timeline: React.FC = () => {
                   <Link className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">{dependencies.length}</div>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {dependencies.length}
+                  </div>
                   <div className="text-gray-600">Dependencies</div>
                 </div>
               </div>
@@ -419,7 +370,9 @@ const Timeline: React.FC = () => {
           {/* Gantt Chart */}
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-900">Gantt Chart</h2>
+              <h2 className="text-xl font-semibold text-gray-900">
+                Gantt Chart
+              </h2>
             </div>
 
             <div className="overflow-x-auto">
@@ -434,14 +387,22 @@ const Timeline: React.FC = () => {
                       <div
                         key={index}
                         className="border-r border-gray-200 p-2 text-center text-sm font-medium text-gray-700"
-                        style={{ width: `${120 * zoomLevel}px`, minWidth: `${120 * zoomLevel}px` }}
+                        style={{
+                          width: `${120 * zoomLevel}px`,
+                          minWidth: `${120 * zoomLevel}px`,
+                        }}
                       >
-                        {viewMode === "days" 
-                          ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        {viewMode === "days"
+                          ? date.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                            })
                           : viewMode === "weeks"
                           ? `Week ${Math.ceil(date.getDate() / 7)}`
-                          : date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                        }
+                          : date.toLocaleDateString("en-US", {
+                              month: "short",
+                              year: "numeric",
+                            })}
                       </div>
                     ))}
                   </div>
@@ -453,24 +414,36 @@ const Timeline: React.FC = () => {
                     const position = calculateTaskPosition(task);
                     const taskDependencies = getTaskDependencies(task.id);
                     const dependentTasks = getDependentTasks(task.id);
-                    
+
                     return (
                       <div
                         key={task.id}
                         className={`flex items-center border-b border-gray-200 hover:bg-[#52b7002f] cursor-pointer ${
-                          selectedTask === task.id ? 'bg-[#52b70056]' : ''
+                          selectedTask === task.id ? "bg-[#52b70056]" : ""
                         }`}
-                        onClick={() => setSelectedTask(selectedTask === task.id ? null : task.id)}
+                        onClick={() =>
+                          setSelectedTask(
+                            selectedTask === task.id ? null : task.id
+                          )
+                        }
                       >
                         {/* Task Info */}
                         <div className="w-80 p-4 border-r border-gray-200">
                           <div className="flex items-center gap-3">
                             {getStatusIcon(task.status)}
                             <div className="flex-1">
-                              <div className="font-medium text-gray-900">{task.title}</div>
-                              <div className="text-sm text-gray-600">{task.assignedTo}</div>
+                              <div className="font-medium text-gray-900">
+                                {task.title}
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {task.assignedTo ?? ""}
+                              </div>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(
+                                    task.priority ?? "medium"
+                                  )}`}
+                                >
                                   {task.priority}
                                 </span>
                                 <span className="text-xs text-gray-500">
@@ -507,7 +480,9 @@ const Timeline: React.FC = () => {
                             className="absolute h-6 rounded-lg opacity-80"
                             style={{
                               left: `${position.left}px`,
-                              width: `${position.width * (task.progress / 100)}px`,
+                              width: `${
+                                position.width * (task.progress / 100)
+                              }px`,
                               backgroundColor: task.color,
                             }}
                           />
@@ -526,50 +501,68 @@ const Timeline: React.FC = () => {
               {/* Task Details */}
               <div className="bg-white rounded-lg shadow">
                 <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Task Details</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Task Details
+                  </h3>
                 </div>
                 <div className="p-6">
                   {(() => {
                     const task = getTaskById(selectedTask);
                     if (!task) return null;
-                    
+
                     return (
                       <div className="space-y-4">
                         <div>
-                          <h4 className="font-medium text-gray-900">{task.title}</h4>
-                          <p className="text-gray-600 mt-1">{task.description}</p>
+                          <h4 className="font-medium text-gray-900">
+                            {task?.title}
+                          </h4>
+                          <p className="text-gray-600 mt-1">
+                            {task?.description ?? ""}
+                          </p>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <span className="text-sm text-gray-500">Assigned To:</span>
-                            <p className="font-medium">{task.assignedTo}</p>
+                            <span className="text-sm text-gray-500">
+                              Assigned To:
+                            </span>
+                            <p className="font-medium">{task?.assignedTo ?? ""}</p>
                           </div>
                           <div>
-                            <span className="text-sm text-gray-500">Status:</span>
-                            <p className="font-medium">{task.status}</p>
+                            <span className="text-sm text-gray-500">
+                              Status:
+                            </span>
+                            <p className="font-medium">{task?.status}</p>
                           </div>
                           <div>
-                            <span className="text-sm text-gray-500">Priority:</span>
-                            <p className="font-medium">{task.priority}</p>
+                            <span className="text-sm text-gray-500">
+                              Priority:
+                            </span>
+                            <p className="font-medium">{task?.priority}</p>
                           </div>
                           <div>
-                            <span className="text-sm text-gray-500">Progress:</span>
-                            <p className="font-medium">{task.progress}%</p>
+                            <span className="text-sm text-gray-500">
+                              Progress:
+                            </span>
+                            <p className="font-medium">{task?.progress}%</p>
                           </div>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <span className="text-sm text-gray-500">Start Date:</span>
+                            <span className="text-sm text-gray-500">
+                              Start Date:
+                            </span>
                             <p className="font-medium">
-                              {new Date(task.startDate).toLocaleDateString()}
+                              {new Date(task?.startDate).toLocaleDateString()}
                             </p>
                           </div>
                           <div>
-                            <span className="text-sm text-gray-500">End Date:</span>
+                            <span className="text-sm text-gray-500">
+                              End Date:
+                            </span>
                             <p className="font-medium">
-                              {new Date(task.endDate).toLocaleDateString()}
+                              {new Date(task?.endDate).toLocaleDateString()}
                             </p>
                           </div>
                         </div>
@@ -582,7 +575,9 @@ const Timeline: React.FC = () => {
               {/* Dependencies */}
               <div className="bg-white rounded-lg shadow">
                 <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">Dependencies</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Dependencies
+                  </h3>
                   <button
                     onClick={() => setShowDependencyModal(true)}
                     className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
@@ -591,25 +586,32 @@ const Timeline: React.FC = () => {
                     Add
                   </button>
                 </div>
-                
+
                 <div className="p-6">
                   {(() => {
                     const taskDependencies = getTaskDependencies(selectedTask);
                     const dependentTasks = getDependentTasks(selectedTask);
-                    
+
                     return (
                       <div className="space-y-4">
                         {/* Prerequisites */}
                         {taskDependencies.length > 0 && (
                           <div>
-                            <h4 className="font-medium text-gray-900 mb-2">Prerequisites</h4>
+                            <h4 className="font-medium text-gray-900 mb-2">
+                              Prerequisites
+                            </h4>
                             <div className="space-y-2">
                               {taskDependencies.map((dep) => {
                                 const fromTask = getTaskById(dep.fromTask);
                                 return (
-                                  <div key={dep.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                                  <div
+                                    key={dep.id}
+                                    className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
+                                  >
                                     <ArrowRight className="w-4 h-4 text-gray-600" />
-                                    <span className="flex-1">{fromTask?.title}</span>
+                                    <span className="flex-1">
+                                      {fromTask?.title}
+                                    </span>
                                     <button
                                       onClick={() => removeDependency(dep.id)}
                                       className="p-1 text-red-600 hover:bg-red-100 rounded"
@@ -626,14 +628,21 @@ const Timeline: React.FC = () => {
                         {/* Dependent Tasks */}
                         {dependentTasks.length > 0 && (
                           <div>
-                            <h4 className="font-medium text-gray-900 mb-2">Dependent Tasks</h4>
+                            <h4 className="font-medium text-gray-900 mb-2">
+                              Dependent Tasks
+                            </h4>
                             <div className="space-y-2">
                               {dependentTasks.map((dep) => {
                                 const toTask = getTaskById(dep.toTask);
                                 return (
-                                  <div key={dep.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                                  <div
+                                    key={dep.id}
+                                    className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg"
+                                  >
                                     <ArrowRight className="w-4 h-4 text-gray-600" />
-                                    <span className="flex-1">{toTask?.title}</span>
+                                    <span className="flex-1">
+                                      {toTask?.title}
+                                    </span>
                                     <button
                                       onClick={() => removeDependency(dep.id)}
                                       className="p-1 text-red-600 hover:bg-red-100 rounded"
@@ -647,13 +656,16 @@ const Timeline: React.FC = () => {
                           </div>
                         )}
 
-                        {taskDependencies.length === 0 && dependentTasks.length === 0 && (
-                          <div className="text-center py-8 text-gray-500">
-                            <Link className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                            <p>No dependencies set for this task</p>
-                            <p className="text-sm mt-1">Click "Add" to create dependencies</p>
-                          </div>
-                        )}
+                        {taskDependencies.length === 0 &&
+                          dependentTasks.length === 0 && (
+                            <div className="text-center py-8 text-gray-500">
+                              <Link className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                              <p>No dependencies set for this task</p>
+                              <p className="text-sm mt-1">
+                                Click "Add" to create dependencies
+                              </p>
+                            </div>
+                          )}
                       </div>
                     );
                   })()}
@@ -676,25 +688,33 @@ const Timeline: React.FC = () => {
                 </label>
                 <select className="w-full p-2 border border-gray-300 rounded-lg">
                   <option value="">Select a task</option>
-                  {tasks.filter(t => t.id !== selectedTask).map(task => (
-                    <option key={task.id} value={task.id}>{task.title}</option>
-                  ))}
+                  {tasks
+                    .filter((t) => t.id !== selectedTask)
+                    .map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   To Task (Dependent)
                 </label>
                 <select className="w-full p-2 border border-gray-300 rounded-lg">
                   <option value="">Select a task</option>
-                  {tasks.filter(t => t.id !== selectedTask).map(task => (
-                    <option key={task.id} value={task.id}>{task.title}</option>
-                  ))}
+                  {tasks
+                    .filter((t) => t.id !== selectedTask)
+                    .map((task) => (
+                      <option key={task.id} value={task.id}>
+                        {task.title}
+                      </option>
+                    ))}
                 </select>
               </div>
             </div>
-            
+
             <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={() => setShowDependencyModal(false)}

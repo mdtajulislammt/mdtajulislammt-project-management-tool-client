@@ -9,7 +9,8 @@ interface TaskModalProps {
     assignedTo: string;
     priority: string;
     status: string;
-    dueDate: string;
+    startDate?: string;
+    dueDate: string; // Will be used as End Date
   };
   teamMembers: { id: string; name: string }[];
   onChange: (field: string, value: string) => void;
@@ -112,10 +113,22 @@ const TaskModal: React.FC<TaskModalProps> = ({
               <option value="completed">Completed</option>
             </select>
           </div>
-          {/* Due Date */}
+          {/* Start Date */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Due Date *
+              Start Date
+            </label>
+            <input
+              type="date"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              value={formData.startDate || ''}
+              onChange={e => onChange('startDate', e.target.value)}
+            />
+          </div>
+          {/* End Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Date *
             </label>
             <input
               type="date"

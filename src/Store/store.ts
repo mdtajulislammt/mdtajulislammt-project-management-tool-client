@@ -1,18 +1,32 @@
-import { configureStore } from '@reduxjs/toolkit';
-import taskReducer from '../Slices/taskSlice';
-import presenceReducer from '../Slices/presenceSlice';
-import authReducer from '../Slices/authSlice';
-import timelineReducer from '../Slices/timelineSlice';
+import { configureStore, combineReducers } from '@reduxjs/toolkit';
+import taskReducer from '../slices/taskSlice';
+import timelineReducer from '../slices/timelineSlice';
+import { timelineApi } from '../services/timelineApi';
+import storage from 'redux-persist/lib/storage';
+import { persistReducer, persistStore } from 'redux-persist';
 
-const store = configureStore({
-  reducer: {
-    tasks: taskReducer,
-    presence: presenceReducer,
-    auth: authReducer,
-    timeline: timelineReducer,
-  },
+const rootReducer = combineReducers({
+  tasks: taskReducer,
+  timeline: timelineReducer,
+  [timelineApi.reducerPath]: timelineApi.reducer,
 });
 
+const persistConfig = {
+  key: 'root',
+  storage,
+};
+
+const persistedReducer = persistReducer(persistConfig, rootReducer);
+
+export const store = configureStore({
+  reducer: persistedReducer,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }).concat(timelineApi.middleware),
+});
+
+export const persistor = persistStore(store);
+
 export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
-export default store; 
+export type AppDispatch = typeof store.dispatch; 

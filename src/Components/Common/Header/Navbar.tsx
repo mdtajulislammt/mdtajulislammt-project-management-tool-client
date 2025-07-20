@@ -1,10 +1,19 @@
 import { Bell, ChevronDown, UserCircle } from "lucide-react";
 import { useState } from "react";
-
-
+import { useDispatch } from "react-redux";
+import { logout } from '../../../slices/authSlice';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = ({ title }: { title: string }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    dispatch(logout());
+    localStorage.removeItem('access_token');
+    navigate('/login');
+  };
 
   return (
     <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -37,7 +46,10 @@ const Navbar = ({ title }: { title: string }) => {
               <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">
                 Settings
               </button>
-              <button className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500">
+              <button
+                className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
+                onClick={handleLogout}
+              >
                 Logout
               </button>
             </div>

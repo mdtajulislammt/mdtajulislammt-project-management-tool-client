@@ -14,17 +14,16 @@ import Sidebar from "../Common/Sideber/Sidebar";
 import TaskModal from "../Common/Model/TaskModal";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store/store';
-import { addTask, updateTask, deleteTask, setTasks, Task } from '../../slices/taskSlice';
-
+import { updateTask, deleteTask, setTasks, Task } from '../../slices/taskSlice';
+import { useGetTasksQuery, useAddTaskMutation } from '../../services/taskApi';
 
 interface TaskFormData {
   title: string;
   description: string;
-  assignedTo: string;
-  priority: "high" | "medium" | "low";
-  status: "pending" | "in-progress" | "completed";
-  startDate?: string;
-  dueDate: string; // End Date
+  assigned_to: string; // user id
+  priority: number; // 1=low, 2=medium, 3=high
+  status: string;
+  deadline: string; // ISO string
 }
 
 interface TeamMember {
@@ -42,7 +41,6 @@ const teamMembers = [
 ];
 
 const TaskList: React.FC = () => {
-  const tasks = useSelector((state: RootState) => state.tasks.tasks);
   const dispatch = useDispatch();
   const [showModal, setShowModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -52,47 +50,62 @@ const TaskList: React.FC = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [detailsTask, setDetailsTask] = useState<Task | null>(null);
 
+  // API hooks
+  const { data: apiTasks = [], refetch } = useGetTasksQuery();
+  const [addTaskApi] = useAddTaskMutation();
+
+  console.log('data',apiTasks)
+  // Redux state for local updates (optional, can be removed if only using API)
+  // const tasks = useSelector((state: RootState) => state.tasks.tasks);
+  // useEffect(() => { dispatch(setTasks(apiTasks)); }, [apiTasks, dispatch]);
+
+  // Use API tasks directly
+  const tasks = apiTasks;
+
   const [formData, setFormData] = useState<TaskFormData>({
     title: "",
     description: "",
-    assignedTo: "",
-    priority: "medium",
+    assigned_to: "",
+    priority: 2,
     status: "pending",
-    startDate: "",
-    dueDate: "",
+    deadline: "",
   });
 
-  // Initialize with some sample tasks (only if tasks are empty)
-  // Remove the useEffect that sets sampleTasks
+  // Priority mapping helpers
+  const priorityStringToNumber = (priority: string) => {
+    if (priority === "high") return 3;
+    if (priority === "low") return 1;
+    return 2;
+  };
+  const priorityNumberToString = (priority?: number) => {
+    if (priority === 3) return "high";
+    if (priority === 1) return "low";
+    return "medium";
+  };
 
   // Handle form submission
-  const handleSubmit = () => {
-    if (!formData.title || !formData.assignedTo || !formData.dueDate) {
+  const handleSubmit = async () => {
+    if (!formData.title || !formData.assigned_to || !formData.deadline) {
       alert("Please fill in all required fields");
       return;
     }
 
     if (editingTask) {
-      // Update existing task
+      // Update existing task (local only, for now)
       dispatch(updateTask({
         ...editingTask,
         ...formData,
-        startDate: String(formData.startDate ?? ""),
-        endDate: String(formData.dueDate ?? ""),
-        progress: editingTask.progress ?? 0,
-        color: editingTask.color ?? "#3B82F6",
+        deadline: new Date(formData.deadline).toISOString(),
       }));
     } else {
-      // Create new task
-      const newTask: Task = {
-        id: Date.now().toString(),
+      // Create new task via API
+      const newTask = {
         ...formData,
-        startDate: String(formData.startDate ?? ""),
-        endDate: String(formData.dueDate ?? ""),
-        progress: 0,
-        color: "#3B82F6",
+        deadline: new Date(formData.deadline).toISOString(),
       };
-      dispatch(addTask(newTask));
+      console.log('add task',newTask)
+      await addTaskApi(newTask);
+      refetch();
     }
 
     resetForm();
@@ -103,11 +116,10 @@ const TaskList: React.FC = () => {
     setFormData({
       title: "",
       description: "",
-      assignedTo: "",
-      priority: "medium",
+      assigned_to: "",
+      priority: 2,
       status: "pending",
-      startDate: "",
-      dueDate: "",
+      deadline: "",
     });
     setEditingTask(null);
     setShowModal(false);
@@ -119,23 +131,22 @@ const TaskList: React.FC = () => {
     setFormData({
       title: String(task.title),
       description: String(task.description ?? ""),
-      assignedTo: String(task.assignedTo ?? ""),
-      priority: task.priority || "medium",
-      status: task.status || "pending",
-      startDate: String(task.startDate ?? ""),
-      dueDate: String(task.endDate ?? ""),
+      assigned_to: String(task.assigned_to ?? ""),
+      priority: task.priority ?? 2,
+      status: task.status ?? "pending",
+      deadline: task.deadline ? task.deadline.slice(0, 10) : "",
     });
     setShowModal(true);
   };
 
-  // Handle delete task
+  // Handle delete task (local only, for now)
   const handleDelete = (taskId: string) => {
     if (window.confirm("Are you sure you want to delete this task?")) {
       dispatch(deleteTask(taskId));
     }
   };
 
-  // Handle status toggle
+  // Handle status toggle (local only, for now)
   const handleStatusToggle = (taskId: string) => {
     const task = tasks.find((t: { id: string }) => t.id === taskId);
     if (task) {
@@ -153,13 +164,12 @@ const TaskList: React.FC = () => {
   const filteredTasks = tasks.filter((task: Task) => {
     const matchesSearch =
       (task.title ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (task.description ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (task.assignedTo ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+      (task.description ?? "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       filterStatus === "all" || task.status === filterStatus;
     const matchesPriority =
-      filterPriority === "all" || task.priority === filterPriority;
+      filterPriority === "all" || priorityNumberToString(task.priority) === filterPriority;
 
     return matchesSearch && matchesStatus && matchesPriority;
   });
@@ -338,15 +348,11 @@ const TaskList: React.FC = () => {
                               <div className="flex items-center gap-4 mt-2">
                                 <div className="flex items-center gap-1 text-sm text-gray-500">
                                   <User className="w-4 h-4" />
-                                  {task.assignedTo}
+                                  {task.assigned_to ? teamMembers.find(member => member.id === task.assigned_to)?.name : 'Unassigned'}
                                 </div>
                                 <div className="flex items-center gap-1 text-sm text-gray-500">
                                   <Calendar className="w-4 h-4" />
-                                  {task.startDate ? `Start: ${task.startDate}` : null}
-                                </div>
-                                <div className="flex items-center gap-1 text-sm text-gray-500">
-                                  <Calendar className="w-4 h-4" />
-                                  End: {task.endDate}
+                                  {task.deadline ? `Deadline: ${task.deadline}` : null}
                                 </div>
                               </div>
                             </div>
@@ -355,18 +361,14 @@ const TaskList: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                                task.priority ?? "medium"
+                                priorityNumberToString(task.priority)
                               )}`}
                             >
-                              {task.priority === "high"
-                                ? "High"
-                                : task.priority === "medium"
-                                ? "Medium"
-                                : "Low"}
+                              {priorityNumberToString(task.priority)}
                             </span>
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                                task.status
+                                task.status ?? ""
                               )}`}
                             >
                               {task.status === "completed"
@@ -430,22 +432,18 @@ const TaskList: React.FC = () => {
                   </div>
                   <div>
                     <span className="block text-sm text-gray-500">Assigned To</span>
-                    <span className="text-gray-800">{detailsTask.assignedTo}</span>
+                    <span className="text-gray-800">{detailsTask.assigned_to ? teamMembers.find(member => member.id === detailsTask.assigned_to)?.name : 'Unassigned'}</span>
                   </div>
                   <div className="flex gap-4">
                     <div>
-                      <span className="block text-sm text-gray-500">Start Date</span>
-                      <span className="text-gray-800">{detailsTask.startDate || '-'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-sm text-gray-500">End Date</span>
-                      <span className="text-gray-800">{detailsTask.endDate}</span>
+                      <span className="block text-sm text-gray-500">Deadline</span>
+                      <span className="text-gray-800">{detailsTask.deadline ? new Date(detailsTask.deadline).toISOString().slice(0, 10) : '-'}</span>
                     </div>
                   </div>
                   <div className="flex gap-4">
                     <div>
                       <span className="block text-sm text-gray-500">Priority</span>
-                      <span className="text-gray-800 capitalize">{detailsTask.priority}</span>
+                      <span className="text-gray-800 capitalize">{priorityNumberToString(detailsTask.priority)}</span>
                     </div>
                     <div>
                       <span className="block text-sm text-gray-500">Status</span>

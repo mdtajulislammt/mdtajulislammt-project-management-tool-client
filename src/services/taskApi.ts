@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { Task } from "../slices/taskSlice";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5001/api/";
+const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5001";
 
 export const taskApi = createApi({
   reducerPath: "taskApi",
@@ -13,7 +13,7 @@ export const taskApi = createApi({
       providesTags: ["Task"],
     }),
     getTask: builder.query<Task, string>({
-      query: (id) => `/tasks/${id}`,
+      query: (id) => `/tasks/${id}`, 
       providesTags: ["Task"],
     }),
     addTask: builder.mutation<Task, Partial<Task>>({

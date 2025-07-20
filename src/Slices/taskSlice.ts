@@ -2,19 +2,17 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface Task {
   id: string;
+  created_at: string;
+  updated_at: string;
+  deadline?: string;
+  status?: string;
   title: string;
   description?: string;
-  assignedTo?: string;
-  status: 'pending' | 'in-progress' | 'completed';
-  priority?: 'low' | 'medium' | 'high';
-  progress: number; // in percentage
-  startDate: string; // or Date
-  endDate: string;   // or Date
-  color?: string;
+  priority?: number;
+  assigned_to?: string;
+  project_id?: string;
+  // You can add comments, dependencies, etc. if you use them in frontend
 }
-
-
-
 
 interface TaskState {
   tasks: Task[];

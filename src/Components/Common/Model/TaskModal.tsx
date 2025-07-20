@@ -6,11 +6,10 @@ interface TaskModalProps {
   formData: {
     title: string;
     description: string;
-    assignedTo: string;
-    priority: string;
+    assigned_to: string;
+    priority: number;
     status: string;
-    startDate?: string;
-    dueDate: string; // Will be used as End Date
+    deadline: string;
   };
   teamMembers: { id: string; name: string }[];
   onChange: (field: string, value: string) => void;
@@ -72,12 +71,12 @@ const TaskModal: React.FC<TaskModalProps> = ({
             <select
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              value={formData.assignedTo}
-              onChange={e => onChange('assignedTo', e.target.value)}
+              value={formData.assigned_to}
+              onChange={e => onChange('assigned_to', e.target.value)}
             >
               <option value="">Select a person</option>
               {teamMembers.map(member => (
-                <option key={member.id} value={member.name}>
+                <option key={member.id} value={member.id}>
                   {member.name}
                 </option>
               ))}
@@ -93,9 +92,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
               value={formData.priority}
               onChange={e => onChange('priority', e.target.value)}
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
+              <option value="1">Low</option>
+              <option value="2">Medium</option>
+              <option value="3">High</option>
             </select>
           </div>
           {/* Status */}
@@ -113,29 +112,17 @@ const TaskModal: React.FC<TaskModalProps> = ({
               <option value="completed">Completed</option>
             </select>
           </div>
-          {/* Start Date */}
+          {/* Deadline */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Start Date
-            </label>
-            <input
-              type="date"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              value={formData.startDate || ''}
-              onChange={e => onChange('startDate', e.target.value)}
-            />
-          </div>
-          {/* End Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              End Date *
+              Deadline *
             </label>
             <input
               type="date"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              value={formData.dueDate}
-              onChange={e => onChange('dueDate', e.target.value)}
+              value={formData.deadline}
+              onChange={e => onChange('deadline', e.target.value)}
             />
           </div>
           {/* Form Actions */}

@@ -2,6 +2,7 @@
   import { Eye, EyeOff, User, Mail, Lock, Chrome } from 'lucide-react';
   import { Link, useNavigate } from 'react-router-dom';
   import AuthLayout from '../AuthLayout';
+  import { useRegisterUserMutation } from '../../../services/authApi';
 
   const Register = () => {
     const [name, setName] = useState('');
@@ -13,14 +14,26 @@
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+    const [registerUser, { isLoading }] = useRegisterUserMutation();
+    const [error, setError] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      setLoading(true);
-      // Simulate async registration
-      setTimeout(() => setLoading(false), 1500);
-      // Handle register logic here
-      console.log('Registration submitted:', { name, email, password, confirmPassword, termsAccepted });
+      setError("");
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      if (!termsAccepted) {
+        setError('You must accept the terms and conditions');
+        return;
+      }
+      try {
+        await registerUser({ name, email, password }).unwrap();
+        navigate('/login');
+      } catch (err: any) {
+        setError(err?.data?.message || 'Registration failed');
+      }
     };
 
     const handleGoogleSignup = () => {
@@ -126,6 +139,7 @@
               I accept the <a href="#" className="text-primary hover:text-green font-medium transition-colors">terms & conditions</a>
             </label>
           </div>
+          {error && <div className="text-red-500 mb-2">{error}</div>}
           <button
             type="submit"
             className="w-full py-3 rounded-lg font-semibold text-white mb-4 flex items-center justify-center transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-lg"

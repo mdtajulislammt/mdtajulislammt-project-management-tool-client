@@ -24,7 +24,8 @@ import Navbar from "../Common/Header/Navbar";
 import { updateTask, addTask, deleteTask, Task } from "../../slices/taskSlice";
 import { addDependency, deleteDependency } from "../../slices/timelineSlice";
 // import { Socket } from "socket.io-client";
-import { io, Socket } from "socket.io-client";
+// import { io } from "socket.io-client";
+// import type { Socket } from "socket.io-client";
 
 
 // Types
@@ -38,6 +39,13 @@ interface Dependency {
     | "finish-to-finish"
     | "start-to-finish";
 }
+
+const teamMembers: { id: string; name: string }[] = [
+  { id: "1", name: "Ahmed Ali" },
+  { id: "2", name: "Fatima Khan" },
+  { id: "3", name: "Mohammad Rahim" },
+  { id: "4", name: "Ayesha Siddika" },
+];
 
 const Timeline: React.FC = () => {
   // Redux state
@@ -56,39 +64,39 @@ const Timeline: React.FC = () => {
   );
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
-  const socketUrl = process.env.REACT_APP_SOCKET_URL || "http://localhost:5001";
-  let socket: Socket | null = null;
+  // const socketUrl = process.env.REACT_APP_SOCKET_URL || "http://localhost:5001";
+  // let socket: Socket | null = null;
 
-  useEffect(() => {
-    socket = io(socketUrl);
+  // useEffect(() => {
+  //   socket = io(socketUrl);
 
-    // Listen for task updates
-    socket.on("task_updated", (updatedTask: Task) => {
-      dispatch(updateTask(updatedTask)); // from your slice
-    });
+  //   // Listen for task updates
+  //   socket.on("task_updated", (updatedTask: Task) => {
+  //     dispatch(updateTask(updatedTask)); // from your slice
+  //   });
 
-    socket.on("task_added", (newTask: Task) => {
-      dispatch(addTask(newTask));
-    });
+  //   socket.on("task_added", (newTask: Task) => {
+  //     dispatch(addTask(newTask));
+  //   });
 
-    socket.on("task_deleted", (taskId: string) => {
-      dispatch(deleteTask(taskId));
-    });
+  //   socket.on("task_deleted", (taskId: string) => {
+  //     dispatch(deleteTask(taskId));
+  //   });
 
-    // Listen for dependency updates
-    socket.on("dependency_added", (dep: Dependency) => {
-      dispatch(addDependency(dep));
-    });
+  //   // Listen for dependency updates
+  //   socket.on("dependency_added", (dep: Dependency) => {
+  //     dispatch(addDependency(dep));
+  //   });
 
-    socket.on("dependency_deleted", (depId: string) => {
-      dispatch(deleteDependency(depId));
-    });    
+  //   socket.on("dependency_deleted", (depId: string) => {
+  //     dispatch(deleteDependency(depId));
+  //   });
 
-    // Clean up on unmount
-    return () => {
-      socket?.disconnect();
-    };
-  }, [dispatch]);
+  //   // Clean up on unmount
+  //   return () => {
+  //     socket?.disconnect();
+  //   };
+  // }, [dispatch]);
 
   // Get filtered tasks
   const getFilteredTasks = () => {
@@ -101,19 +109,27 @@ const Timeline: React.FC = () => {
     return tasks.find((task) => task.id === id);
   };
 
+  // Priority mapping helpers
+  const priorityNumberToString = (priority?: number) => {
+    if (priority === 3) return "high";
+    if (priority === 1) return "low";
+    return "medium";
+  };
+
   // Calculate timeline dates
   const getTimelineRange = () => {
-    const allDates = tasks.flatMap((task) => [
-      new Date(task.startDate),
-      new Date(task.endDate),
-    ]);
-    const minDate = new Date(Math.min(...allDates.map((d) => d.getTime())));
-    const maxDate = new Date(Math.max(...allDates.map((d) => d.getTime())));
-
-    // Add some padding
+    const allDates = tasks
+      .map(task => task.deadline)
+      .filter(Boolean)
+      .map(date => new Date(date!));
+    if (allDates.length === 0) {
+      const today = new Date();
+      return { minDate: today, maxDate: today };
+    }
+    const minDate = new Date(Math.min(...allDates.map(d => d.getTime())));
+    const maxDate = new Date(Math.max(...allDates.map(d => d.getTime())));
     minDate.setDate(minDate.getDate() - 7);
     maxDate.setDate(maxDate.getDate() + 7);
-
     return { minDate, maxDate };
   };
 
@@ -143,25 +159,15 @@ const Timeline: React.FC = () => {
     const { minDate } = getTimelineRange();
     const columns = generateTimelineColumns();
     const columnWidth = 120 * zoomLevel;
-
-    const taskStart = new Date(task.startDate);
-    const taskEnd = new Date(task.endDate);
-
-    // Find start position
+    const taskEnd = task.deadline ? new Date(task.deadline) : new Date();
+    // For Gantt, use deadline as both start and end for now
     let startIndex = 0;
     for (let i = 0; i < columns.length; i++) {
-      if (columns[i] <= taskStart) {
+      if (columns[i] <= taskEnd) {
         startIndex = i;
       }
     }
-
-    // Calculate duration
-    const durationMs = taskEnd.getTime() - taskStart.getTime();
-    const totalDurationMs =
-      columns[columns.length - 1].getTime() - columns[0].getTime();
-    const widthRatio = durationMs / totalDurationMs;
-    const width = Math.max(columnWidth * widthRatio, 60);
-
+    const width = columnWidth; // single column width
     return {
       left: startIndex * columnWidth,
       width: width,
@@ -169,8 +175,8 @@ const Timeline: React.FC = () => {
   };
 
   // Get priority color
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
+  const getPriorityColor = (priority?: number) => {
+    switch (priorityNumberToString(priority)) {
       case "high":
         return "bg-red-100 text-red-800";
       case "medium":
@@ -206,13 +212,13 @@ const Timeline: React.FC = () => {
     };
 
     dispatch(addDependency(newDependency));
-    socket?.emit("add_dependency", newDependency);
+    // socket?.emit("add_dependency", newDependency);
   };
 
   // Remove dependency
   const removeDependency = (dependencyId: string) => {
     dispatch(deleteDependency(dependencyId));
-    socket?.emit("delete_dependency", dependencyId);
+    // socket?.emit("delete_dependency", dependencyId);
   };
 
   // Get task dependencies
@@ -430,24 +436,24 @@ const Timeline: React.FC = () => {
                         {/* Task Info */}
                         <div className="w-80 p-4 border-r border-gray-200">
                           <div className="flex items-center gap-3">
-                            {getStatusIcon(task.status)}
+                            {getStatusIcon(task.status ?? "")}
                             <div className="flex-1">
                               <div className="font-medium text-gray-900">
                                 {task.title}
                               </div>
                               <div className="text-sm text-gray-600">
-                                {task.assignedTo ?? ""}
+                                {task.assigned_to ? teamMembers.find((member: { id: string; name: string }) => member.id === task.assigned_to)?.name : 'Unassigned'}
                               </div>
                               <div className="flex items-center gap-2 mt-1">
                                 <span
                                   className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(
-                                    task.priority ?? "medium"
+                                    task.priority
                                   )}`}
                                 >
-                                  {task.priority}
+                                  {priorityNumberToString(task.priority)}
                                 </span>
                                 <span className="text-xs text-gray-500">
-                                  {task.progress}%
+                                  {task.deadline ? new Date(task.deadline).toLocaleDateString() : "-"}
                                 </span>
                               </div>
                             </div>
@@ -462,10 +468,10 @@ const Timeline: React.FC = () => {
                             style={{
                               left: `${position.left}px`,
                               width: `${position.width}px`,
-                              backgroundColor: task.color,
+                              // backgroundColor: task.color,
                             }}
                           >
-                            {task.progress}%
+                            {/* {task.progress}% */}
                           </div>
 
                           {/* Progress Bar */}
@@ -481,9 +487,9 @@ const Timeline: React.FC = () => {
                             style={{
                               left: `${position.left}px`,
                               width: `${
-                                position.width * (task.progress / 100)
+                                position.width * (typeof (task as any).progress === 'number' ? (task as any).progress / 100 : 0)
                               }px`,
-                              backgroundColor: task.color,
+                              // backgroundColor: task.color,
                             }}
                           />
                         </div>
@@ -526,7 +532,7 @@ const Timeline: React.FC = () => {
                             <span className="text-sm text-gray-500">
                               Assigned To:
                             </span>
-                            <p className="font-medium">{task?.assignedTo ?? ""}</p>
+                            <p className="font-medium">{task?.assigned_to ? teamMembers.find((member: { id: string; name: string }) => member.id === task.assigned_to)?.name : 'Unassigned'}</p>
                           </div>
                           <div>
                             <span className="text-sm text-gray-500">
@@ -538,31 +544,23 @@ const Timeline: React.FC = () => {
                             <span className="text-sm text-gray-500">
                               Priority:
                             </span>
-                            <p className="font-medium">{task?.priority}</p>
+                            <p className="font-medium">{priorityNumberToString(task?.priority)}</p>
                           </div>
                           <div>
                             <span className="text-sm text-gray-500">
                               Progress:
                             </span>
-                            <p className="font-medium">{task?.progress}%</p>
+                            <p className="font-medium">{(task as any).progress !== undefined ? `${(task as any).progress}%` : "-"}</p>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <span className="text-sm text-gray-500">
-                              Start Date:
+                              Deadline:
                             </span>
                             <p className="font-medium">
-                              {new Date(task?.startDate).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-sm text-gray-500">
-                              End Date:
-                            </span>
-                            <p className="font-medium">
-                              {new Date(task?.endDate).toLocaleDateString()}
+                              {task.deadline ? new Date(task.deadline).toLocaleDateString() : "-"}
                             </p>
                           </div>
                         </div>

@@ -243,16 +243,16 @@ const Dashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-    {/* Sidebar */}
-    <div className="hidden md:block">
-      <Sidebar />
-    </div>
+      {/* Sidebar */}
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
 
-    {/* Main content area */}
+      {/* Main content area */}
     <div className="flex-1 flex flex-col">
       <Navbar title="Dashboard" />
       
-      <div className="flex-1 p-6">
+        <div className="flex-1 p-6">
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="mb-8">
@@ -401,10 +401,10 @@ const Dashboard = () => {
         </div>
       )}
     </div>
-    </div>
-    </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default Dashboard; 

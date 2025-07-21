@@ -13,12 +13,13 @@ import { NavLink } from 'react-router-dom';
 const sidebarLinks = [
     // { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { to: '/tasks', label: 'Tasks', icon: <ListChecks size={20} /> },
+    { to: '/projects', label: 'Project', icon: <ListChecks size={20} /> },
     { to: '/presence', label: 'Presence', icon: <Users size={20} /> },
-    { to: '/timeline', label: 'Dependency & Timeline', icon: <CalendarRange size={20} /> },
+    { to: '/timeline', label: 'Timeline', icon: <CalendarRange size={20} /> },
     { to: '/role', label: 'Role', icon: <Shield size={20} /> },
     { to: '/notifications', label: 'Notifications', icon: <Bell size={20} /> },
     { to: '/users', label: 'Users', icon: <Users size={20} /> },
-    { to: '/settings', label: 'Settings', icon: <Settings size={20} /> },
+    // { to: '/settings', label: 'Settings', icon: <Settings size={20} /> },
   ];
   
   const Sidebar = () => (

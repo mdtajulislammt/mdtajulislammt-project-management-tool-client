@@ -1,7 +1,4 @@
 import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store/store';
-import { addUser, updateUser, deleteUser, User } from '../../slices/userSlice';
 import { 
   Plus, 
   Edit2, 
@@ -20,6 +17,8 @@ import {
 } from 'lucide-react';
 import Sidebar from "../Common/Sideber/Sidebar";
 import Navbar from "../Common/Header/Navbar";
+import { useGetUsersQuery, useAddUserMutation, useUpdateUserMutation, useDeleteUserMutation } from '../../services/userApi';
+import type { User } from '../../slices/userSlice';
 
 // Remove ExtendedUser, use UserForm for form state
 
@@ -44,8 +43,11 @@ const emptyForm: UserForm = {
 };
 
 const Users: React.FC = () => {
-  const users = useSelector((state: RootState) => state.users.users);
-  const dispatch = useDispatch();
+  // API hooks
+  const { data: users = [], refetch } = useGetUsersQuery();
+  const [addUserApi] = useAddUserMutation();
+  const [updateUserApi] = useUpdateUserMutation();
+  const [deleteUserApi] = useDeleteUserMutation();
 
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -66,84 +68,43 @@ const Users: React.FC = () => {
   };
 
   const validatePassword = (password: string): boolean => {
-    if (!password) {
-      setPasswordError('Password is required');
-      return false;
-    }
+    // if (!password) {
+    //   setPasswordError('Password is required');
+    //   return false;
+    // }
     
-    if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters long');
-      return false;
-    }
+    // if (password.length < 6) {
+    //   setPasswordError('Password must be at least 6 characters long');
+    //   return false;
+    // }
     
-    // Check for at least one uppercase letter, one lowercase letter, and one number
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasLowercase = /[a-z]/.test(password);
-    const hasNumber = /\d/.test(password);
+    // // Check for at least one uppercase letter, one lowercase letter, and one number
+    // const hasUppercase = /[A-Z]/.test(password);
+    // const hasLowercase = /[a-z]/.test(password);
+    // const hasNumber = /\d/.test(password);
     
-    if (!hasUppercase || !hasLowercase || !hasNumber) {
-      setPasswordError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
-      return false;
-    }
+    // if (!hasUppercase || !hasLowercase || !hasNumber) {
+    //   setPasswordError('Password must contain at least one uppercase letter, one lowercase letter, and one number');
+    //   return false;
+    // }
     
-    setPasswordError('');
+    // setPasswordError('');
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.email) return;
 
-    // Validate password only for new users or when password is being changed
-    if (!editingId || form.password) {
-      if (!validatePassword(form.password || '')) {
-        return;
-      }
-    }
-
     if (editingId) {
-      // For editing, only include password if it's being changed
-      const updateData = {
-        id: editingId,
-        name: form.name,
-        email: form.email,
-        role: form.role,
-        password: form.password || '',
-        createdAt: form.createdAt,
-        updatedAt: new Date().toISOString(),
-        status: form.status,
-        assignedTasks: [],
-        createdTasks: [],
-        comments: [],
-        timelines: [],
-        projects: [],
-        presences: [],
-        notification: [],
-      };
-      dispatch(updateUser(updateData));
+      // Update user via API
+      await updateUserApi({ id: editingId, ...form });
       setEditingId(null);
     } else {
-      // For new user, password is required
-      const newUser = {
-        id: Date.now().toString(),
-        name: form.name,
-        email: form.email,
-        role: form.role,
-        password: form.password || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: form.status,
-        assignedTasks: [],
-        createdTasks: [],
-        comments: [],
-        timelines: [],
-        projects: [],
-        presences: [],
-        notification: [],
-      };
-      dispatch(addUser(newUser));
+      // Add user via API
+      await addUserApi(form);
     }
-
+    refetch();
     setForm(emptyForm);
     setIsModalOpen(false);
     setPasswordError('');
@@ -164,9 +125,10 @@ const Users: React.FC = () => {
     setPasswordError('');
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      dispatch(deleteUser(id));
+      await deleteUserApi(id);
+      refetch();
     }
   };
 
@@ -518,9 +480,9 @@ const Users: React.FC = () => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#51B700] focus:border-transparent"
                 >
-                  <option value="member">Member</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
+                  <option value="MEMBER">Member</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="ADMIN">Admin</option>
                 </select>
               </div>
               

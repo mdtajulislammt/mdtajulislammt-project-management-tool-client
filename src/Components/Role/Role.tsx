@@ -68,6 +68,7 @@ const RoleBasedTimeline: React.FC = () => {
   const [zoomLevel, setZoomLevel] = useState(0.5);
   const [viewMode, setViewMode] = useState<"days" | "weeks" | "months">("weeks");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [userSearch, setUserSearch] = useState('');
 
   // Role definitions with permissions
   const rolePermissions: RolePermissions = {
@@ -756,8 +757,18 @@ const RoleBasedTimeline: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Switch User Role</h3>
+            <input
+              type="text"
+              placeholder="Search user by name or email"
+              value={userSearch}
+              onChange={e => setUserSearch(e.target.value)}
+              className="w-full mb-4 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
             <div className="space-y-3">
-              {mockUsers.map((user) => (
+              {mockUsers.filter(user =>
+                user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+                (user.email && user.email.toLowerCase().includes(userSearch.toLowerCase()))
+              ).map((user) => (
                 <div
                   key={user.id}
                   className={`p-3 border rounded-lg cursor-pointer transition-colors ${

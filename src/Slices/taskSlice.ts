@@ -2,16 +2,45 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 export interface Task {
   id: string;
-  created_at: string;
-  updated_at: string;
-  deadline?: string;
-  status?: string;
   title: string;
   description?: string;
-  priority?: number;
-  assigned_to?: string;
-  project_id?: string;
-  // You can add comments, dependencies, etc. if you use them in frontend
+  status?: string;
+  priority?: string | number;
+  deadline?: string;
+  assignedTo?: string;
+  projectId?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  assignedUser?: {
+    id: string;
+    email: string;
+    password: string;
+    name: string;
+    role: string;
+    createdAt: string;
+    updatedAt: string;
+    status: string;
+  };
+  creator?: {
+    id: string;
+    email: string;
+    password: string;
+    name: string;
+    role: string;
+    createdAt: string;
+    updatedAt: string;
+    status: string;
+  };
+  project?: {
+    id: string;
+    title: string;
+    description: string;
+    ownerId: string;
+    createdAt: string;
+    updatedAt: string;
+    status: string;
+  };
 }
 
 interface TaskState {

@@ -15,7 +15,7 @@ import TaskModal from "../Common/Model/TaskModal";
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store/store';
 import { updateTask, deleteTask, setTasks, Task } from '../../slices/taskSlice';
-import { useGetTasksQuery, useAddTaskMutation } from '../../services/taskApi';
+import { useGetTasksQuery, useAddTaskMutation, useUpdateTaskMutation, useDeleteTaskMutation } from '../../services/taskApi';
 
 interface TaskFormData {
   title: string;
@@ -24,6 +24,7 @@ interface TaskFormData {
   priority: number; // 1=low, 2=medium, 3=high
   status: string;
   deadline: string; // ISO string
+  project_id: string;
 }
 
 interface TeamMember {
@@ -51,16 +52,23 @@ const TaskList: React.FC = () => {
   const [detailsTask, setDetailsTask] = useState<Task | null>(null);
 
   // API hooks
-  const { data: apiTasks = [], refetch } = useGetTasksQuery();
+  const { data: apiTasks, refetch } = useGetTasksQuery();
   const [addTaskApi] = useAddTaskMutation();
+  const [updateTaskApi] = useUpdateTaskMutation();
+  const [deleteTaskApi] = useDeleteTaskMutation();
 
   console.log('data',apiTasks)
+
+  
+useEffect(() => {
+  console.log("Raw API response:", apiTasks);
+}, [apiTasks]);
   // Redux state for local updates (optional, can be removed if only using API)
   // const tasks = useSelector((state: RootState) => state.tasks.tasks);
   // useEffect(() => { dispatch(setTasks(apiTasks)); }, [apiTasks, dispatch]);
 
   // Use API tasks directly
-  const tasks = apiTasks;
+  const tasks: Task[] = Array.isArray(apiTasks) ? apiTasks : Array.isArray((apiTasks as any)?.data) ? (apiTasks as any).data : [];
 
   const [formData, setFormData] = useState<TaskFormData>({
     title: "",
@@ -69,6 +77,7 @@ const TaskList: React.FC = () => {
     priority: 2,
     status: "pending",
     deadline: "",
+    project_id: "",
   });
 
   // Priority mapping helpers
@@ -83,6 +92,18 @@ const TaskList: React.FC = () => {
     return "medium";
   };
 
+  const getPriorityNumber = (priority: string | number | undefined) => {
+    if (typeof priority === 'number') return priority;
+    if (typeof priority === 'string') {
+      if (priority === 'high') return 3;
+      if (priority === 'low') return 1;
+      if (priority === 'medium') return 2;
+      const parsed = parseInt(priority, 10);
+      if (!isNaN(parsed)) return parsed;
+    }
+    return 2;
+  };
+
   // Handle form submission
   const handleSubmit = async () => {
     if (!formData.title || !formData.assigned_to || !formData.deadline) {
@@ -90,21 +111,22 @@ const TaskList: React.FC = () => {
       return;
     }
 
+    const payload = {
+      title: formData.title,
+      description: formData.description,
+      assignedTo: formData.assigned_to,
+      priority: formData.priority,
+      status: formData.status,
+      deadline: new Date(formData.deadline).toISOString(),
+      projectId: formData.project_id,
+      // Optionally add createdBy if available
+    };
+
     if (editingTask) {
-      // Update existing task (local only, for now)
-      dispatch(updateTask({
-        ...editingTask,
-        ...formData,
-        deadline: new Date(formData.deadline).toISOString(),
-      }));
+      await updateTaskApi({ id: editingTask.id, ...payload });
+      refetch();
     } else {
-      // Create new task via API
-      const newTask = {
-        ...formData,
-        deadline: new Date(formData.deadline).toISOString(),
-      };
-      console.log('add task',newTask)
-      await addTaskApi(newTask);
+      await addTaskApi(payload);
       refetch();
     }
 
@@ -120,6 +142,7 @@ const TaskList: React.FC = () => {
       priority: 2,
       status: "pending",
       deadline: "",
+      project_id: "",
     });
     setEditingTask(null);
     setShowModal(false);
@@ -131,26 +154,29 @@ const TaskList: React.FC = () => {
     setFormData({
       title: String(task.title),
       description: String(task.description ?? ""),
-      assigned_to: String(task.assigned_to ?? ""),
-      priority: task.priority ?? 2,
+      assigned_to: String(task.assignedTo ?? ""),
+      priority: typeof task.priority === 'string' ? priorityStringToNumber(task.priority) : (task.priority ?? 2),
       status: task.status ?? "pending",
       deadline: task.deadline ? task.deadline.slice(0, 10) : "",
+      project_id: task.projectId ?? "",
     });
     setShowModal(true);
   };
 
-  // Handle delete task (local only, for now)
-  const handleDelete = (taskId: string) => {
+  // Handle delete task (API)
+  const handleDelete = async (taskId: string) => {
     if (window.confirm("Are you sure you want to delete this task?")) {
-      dispatch(deleteTask(taskId));
+      await deleteTaskApi(taskId);
+      refetch();
     }
   };
 
-  // Handle status toggle (local only, for now)
-  const handleStatusToggle = (taskId: string) => {
+  // Handle status toggle (API)
+  const handleStatusToggle = async (taskId: string) => {
     const task = tasks.find((t: { id: string }) => t.id === taskId);
     if (task) {
-      dispatch(updateTask({ ...task, status: task.status === "completed" ? "pending" : "completed" }));
+      await updateTaskApi({ id: task.id, status: task.status === "completed" ? "pending" : "completed" });
+      refetch();
     }
   };
 
@@ -165,14 +191,17 @@ const TaskList: React.FC = () => {
     const matchesSearch =
       (task.title ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (task.description ?? "").toLowerCase().includes(searchTerm.toLowerCase());
-
+  
     const matchesStatus =
       filterStatus === "all" || task.status === filterStatus;
+  
     const matchesPriority =
-      filterPriority === "all" || priorityNumberToString(task.priority) === filterPriority;
-
+      filterPriority === "all" || priorityNumberToString(getPriorityNumber(task.priority)) === filterPriority;
+  
     return matchesSearch && matchesStatus && matchesPriority;
   });
+
+  console.log("filteredTasks",filteredTasks)
 
   // Priority color mapping
   const getPriorityColor = (priority: string) => {
@@ -348,7 +377,7 @@ const TaskList: React.FC = () => {
                               <div className="flex items-center gap-4 mt-2">
                                 <div className="flex items-center gap-1 text-sm text-gray-500">
                                   <User className="w-4 h-4" />
-                                  {task.assigned_to ? teamMembers.find(member => member.id === task.assigned_to)?.name : 'Unassigned'}
+                                  {task.assignedUser && typeof task.assignedUser === 'object' && 'name' in task.assignedUser ? (task.assignedUser as any).name : 'Unassigned'}
                                 </div>
                                 <div className="flex items-center gap-1 text-sm text-gray-500">
                                   <Calendar className="w-4 h-4" />
@@ -361,10 +390,10 @@ const TaskList: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(
-                                priorityNumberToString(task.priority)
+                                priorityNumberToString(getPriorityNumber(task.priority))
                               )}`}
                             >
-                              {priorityNumberToString(task.priority)}
+                              {priorityNumberToString(getPriorityNumber(task.priority))}
                             </span>
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
@@ -432,7 +461,7 @@ const TaskList: React.FC = () => {
                   </div>
                   <div>
                     <span className="block text-sm text-gray-500">Assigned To</span>
-                    <span className="text-gray-800">{detailsTask.assigned_to ? teamMembers.find(member => member.id === detailsTask.assigned_to)?.name : 'Unassigned'}</span>
+                    <span className="text-gray-800">{detailsTask.assignedUser && typeof detailsTask.assignedUser === 'object' && 'name' in detailsTask.assignedUser ? (detailsTask.assignedUser as any).name : 'Unassigned'}</span>
                   </div>
                   <div className="flex gap-4">
                     <div>
@@ -443,7 +472,7 @@ const TaskList: React.FC = () => {
                   <div className="flex gap-4">
                     <div>
                       <span className="block text-sm text-gray-500">Priority</span>
-                      <span className="text-gray-800 capitalize">{priorityNumberToString(detailsTask.priority)}</span>
+                      <span className="text-gray-800 capitalize">{priorityNumberToString(getPriorityNumber(detailsTask.priority))}</span>
                     </div>
                     <div>
                       <span className="block text-sm text-gray-500">Status</span>

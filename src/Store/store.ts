@@ -5,9 +5,11 @@ import userReducer from '../slices/userSlice';
 import authReducer from '../slices/authSlice';
 import { timelineApi } from '../services/timelineApi';
 import { taskApi } from '../services/taskApi';
-import { authApi } from '../services/authApi'; // ✅ Import authApi
+import { authApi } from '../services/authApi';
 import storage from 'redux-persist/lib/storage';
 import { persistReducer, persistStore } from 'redux-persist';
+import userApi from '../services/userApi';
+import projectApi from '../services/projectApi';
 
 const rootReducer = combineReducers({
   tasks: taskReducer,
@@ -17,7 +19,9 @@ const rootReducer = combineReducers({
 
   [timelineApi.reducerPath]: timelineApi.reducer,
   [taskApi.reducerPath]: taskApi.reducer,
-  [authApi.reducerPath]: authApi.reducer, // ✅ Add here
+  [authApi.reducerPath]: authApi.reducer,
+  [userApi.reducerPath]: userApi.reducer, 
+  [projectApi.reducerPath]: projectApi.reducer, 
 });
 
 const persistConfig = {
@@ -35,7 +39,9 @@ export const store = configureStore({
     }).concat(
       timelineApi.middleware,
       taskApi.middleware,
-      authApi.middleware // ✅ Add here
+      authApi.middleware,
+      userApi.middleware,
+      projectApi.middleware
     ),
 });
 

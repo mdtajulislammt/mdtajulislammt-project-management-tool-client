@@ -30,7 +30,7 @@ const Login: React.FC = () => {
       console.log("result", result);
       localStorage.setItem("access_token", result.access_token);
       dispatch(login({ user: result.user, token: result.access_token }));
-      navigate("/dashboard");
+      navigate("/tasks");
     } catch (err: any) {
       setError(err?.data?.message || "Invalid email or password");
     }
@@ -38,7 +38,7 @@ const Login: React.FC = () => {
 
   React.useEffect(() => {
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate("/tasks");
     } else if (tried && email && password) {
       setError("Invalid email or password");
     }

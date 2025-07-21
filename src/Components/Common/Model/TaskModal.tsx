@@ -1,4 +1,6 @@
 import React from 'react';
+import UserSelector from '../CustomSelect/UserSelector';
+import ProjectSelector from '../CustomSelect/ProjectSelector';
 
 interface TaskModalProps {
   open: boolean;
@@ -10,6 +12,7 @@ interface TaskModalProps {
     priority: number;
     status: string;
     deadline: string;
+    project_id: string;
   };
   teamMembers: { id: string; name: string }[];
   onChange: (field: string, value: string) => void;
@@ -63,24 +66,19 @@ const TaskModal: React.FC<TaskModalProps> = ({
               placeholder="Enter task description"
             />
           </div>
+           {/* Project Selector */}
+           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Project
+            </label>
+            <ProjectSelector value={formData.project_id} onSelect={id => onChange('project_id', id)} />
+          </div>
           {/* Assigned To */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Assign To *
             </label>
-            <select
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              value={formData.assigned_to}
-              onChange={e => onChange('assigned_to', e.target.value)}
-            >
-              <option value="">Select a person</option>
-              {teamMembers.map(member => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-            </select>
+            <UserSelector value={formData.assigned_to} onSelect={id => onChange('assigned_to', id)} />
           </div>
           {/* Priority */}
           <div>
@@ -125,6 +123,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
               onChange={e => onChange('deadline', e.target.value)}
             />
           </div>
+         
           {/* Form Actions */}
           <div className="flex gap-3 pt-4">
             <button

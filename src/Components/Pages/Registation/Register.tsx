@@ -30,7 +30,7 @@
       }
       try {
         await registerUser({ name, email, password }).unwrap();
-        navigate('/login');
+        navigate('/tasks');
       } catch (err: any) {
         setError(err?.data?.message || 'Registration failed');
       }

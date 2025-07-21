@@ -16,6 +16,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store/store';
 import { updateTask, deleteTask, setTasks, Task } from '../../slices/taskSlice';
 import { useGetTasksQuery, useAddTaskMutation, useUpdateTaskMutation, useDeleteTaskMutation } from '../../services/taskApi';
+import dayjs from "dayjs";
 
 interface TaskFormData {
   title: string;
@@ -381,8 +382,7 @@ useEffect(() => {
                                 </div>
                                 <div className="flex items-center gap-1 text-sm text-gray-500">
                                   <Calendar className="w-4 h-4" />
-                                  {task.deadline ? `Deadline: ${task.deadline}` : null}
-                                </div>
+                                  {task.deadline ? `Deadline: ${dayjs(task.deadline).format("DD-MM-YYYY HH:mm")}` : null}                                  </div>
                               </div>
                             </div>
                           </div>

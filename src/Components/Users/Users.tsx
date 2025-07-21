@@ -256,7 +256,7 @@ const Users: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">
-                    {users.filter(u => u.role === 'admin').length}
+                    {users.filter(u => u.role === 'ADMIN').length}
                   </div>
                   <div className="text-gray-600">Admins</div>
                 </div>
@@ -270,7 +270,7 @@ const Users: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">
-                    {users.filter(u => u.role === 'manager').length}
+                    {users.filter(u => u.role === 'MANAGER').length}
                   </div>
                   <div className="text-gray-600">Managers</div>
                 </div>
@@ -284,7 +284,7 @@ const Users: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-2xl font-bold text-gray-900">
-                    {users.filter(u => u.role === 'member').length}
+                    {users.filter(u => u.role === 'MEMBER').length}
                   </div>
                   <div className="text-gray-600">Members</div>
                 </div>
